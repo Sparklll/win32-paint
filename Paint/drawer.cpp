@@ -26,7 +26,6 @@ void Drawer::drawLine(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, bool 
 {
 	if (fPrevLine)
 	{
-		SetROP2(hdc, R2_NOTXORPEN); 
 		MoveToEx(hdc, ptsBegin.x, ptsBegin.y, (LPPOINT)NULL);
 		LineTo(hdc, ptsEnd->x, ptsEnd->y);
 		StretchBlt(hdc, 0, 0, 
@@ -35,7 +34,6 @@ void Drawer::drawLine(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, bool 
 			memDC, 0, 0,
 			GetDeviceCaps(memDC, HORZRES), 
 			GetDeviceCaps(memDC, VERTRES), SRCCOPY);
-		SetROP2(hdc, R2_COPYPEN);
 	}
 	*ptsEnd = MAKEPOINTS(lParam);
 
@@ -47,7 +45,6 @@ void Drawer::drawRectangle(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, 
 {
 	if (fPrevLine)
 	{
-		SetROP2(hdc, R2_NOTXORPEN); 
 		Rectangle(hdc, ptsBegin.x, ptsBegin.y, ptsEnd->x, ptsEnd->y);
 		StretchBlt(hdc, 0, 0, 
 			GetDeviceCaps(hdc, HORZRES),
@@ -55,8 +52,6 @@ void Drawer::drawRectangle(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, 
 			memDC, 0, 0,
 			GetDeviceCaps(memDC, HORZRES),
 			GetDeviceCaps(memDC, VERTRES), SRCCOPY);
-		SetROP2(hdc, R2_COPYPEN);
-
 	}
 	*ptsEnd = MAKEPOINTS(lParam);
 	if (!isFill)
@@ -68,8 +63,6 @@ void Drawer::drawEllipse(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, bo
 {
 	if (fPrevLine)
 	{
-		SetROP2(hdc, R2_NOTXORPEN);
-
 		Ellipse(hdc, ptsBegin.x, ptsBegin.y, ptsEnd->x, ptsEnd->y);
 		StretchBlt(hdc, 0, 0, 
 			GetDeviceCaps(hdc, HORZRES),
@@ -77,8 +70,6 @@ void Drawer::drawEllipse(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, bo
 			memDC, 0, 0,
 			GetDeviceCaps(memDC, HORZRES), 
 			GetDeviceCaps(memDC, VERTRES), SRCCOPY);
-		SetROP2(hdc, R2_COPYPEN);
-
 	}
 	*ptsEnd = MAKEPOINTS(lParam);
 	if (!isFill)
@@ -90,7 +81,6 @@ void Drawer::drawPolyLine(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, b
 {
 	if (fPrevLine)
 	{
-		SetROP2(hdc, R2_NOTXORPEN);
 		MoveToEx(hdc, ptsBegin.x, ptsBegin.y, (LPPOINT)NULL);
 		LineTo(hdc, ptsEnd->x, ptsEnd->y);
 		StretchBlt(hdc, 0, 0, 
@@ -99,7 +89,6 @@ void Drawer::drawPolyLine(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, b
 			memDC, 0, 0,
 			GetDeviceCaps(memDC, HORZRES), 
 			GetDeviceCaps(memDC, VERTRES), SRCCOPY);
-		SetROP2(hdc, R2_COPYPEN);
 	}
 	*ptsEnd = MAKEPOINTS(lParam);
 
