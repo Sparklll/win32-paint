@@ -2,14 +2,17 @@
 #include "paintapp.h"
 #include "drawer.h"
 
-#include <windows.h>
 #include <vector>
 #include <string>
 #include <CommCtrl.h>
 #include <commdlg.h>
 #include <fstream>
-
-using namespace std;
+#include <windows.h>
+#include <objidl.h>
+#include <gdiplus.h>
+#include <queue>
+using namespace Gdiplus;
+#pragma comment (lib,"Gdiplus.lib")
 
 int APIENTRY wWinMain(HINSTANCE hInstance,
 	HINSTANCE hPrevInstance,
@@ -19,9 +22,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+	ULONG_PTR gdiplusToken;
+
 	// Initialize global strings
 	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
 	LoadStringW(hInstance, IDC_PAINTAPP, szWindowClass, MAX_LOADSTRING);
+
+	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
 	MyRegisterClass(hInstance);
 
 	// Perform application initialization:
@@ -44,6 +53,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
 		}
 	}
 
+	Gdiplus::GdiplusShutdown(gdiplusToken);
 	return (int)msg.wParam;
 }
 
@@ -71,18 +81,27 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
 	hInst = hInstance; // Store instance handle in our global variable
 
-	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+	HWND hWnd = CreateWindowW(szWindowClass, 
+		szTitle,
+		WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT,
+		0, 
+		CW_USEDEFAULT, 
+		0,
+		nullptr, 
+		nullptr, 
+		hInstance, 
+		nullptr);
 
 	if (!hWnd)
 	{
-		return FALSE;
+		return false;
 	}
 
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -90,7 +109,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	static int window_width;
-
 	static bool clicked = false;
 
 	static int x = 0;
@@ -106,6 +124,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	HCURSOR eraserCursor = LoadCursor(hInstance, MAKEINTRESOURCE(IDC_ERASERCURSOR));
 	HCURSOR fillCursor = LoadCursor(hInstance, MAKEINTRESOURCE(IDC_FILLCURSOR));
 
+
+
 	switch (message)
 	{
 		case WM_CREATE:
@@ -119,6 +139,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			hFillBrush = CreateSolidBrush(areaFillColor);
 
 			hdc = GetDC(hWnd);
+
+			// memDC/memBM
 			memDC = CreateCompatibleDC(hdc);
 
 			memBM = CreateCompatibleBitmap(hdc, 
@@ -126,18 +148,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				GetDeviceCaps(hdc, VERTRES));
 
 			SelectObject(memDC, memBM);
+			SelectObject(memDC, hPen);
 			PatBlt(memDC, 0, 0, 
 				GetDeviceCaps(hdc, HORZRES), 
 				GetDeviceCaps(hdc, VERTRES), WHITENESS);
 
-			SelectObject(memDC, hPen);
+			// gradientDC/gradientBM
+			gradientDC = CreateCompatibleDC(hdc);
+			gradientBM = CreateCompatibleBitmap(hdc,
+				GetDeviceCaps(hdc, HORZRES),
+				GetDeviceCaps(hdc, VERTRES));
+			SelectObject(gradientDC, gradientBM);
+			PatBlt(gradientDC, 0, 0,
+				GetDeviceCaps(hdc, HORZRES),
+				GetDeviceCaps(hdc, VERTRES), WHITENESS);
+			
 
 			// init status bar		
 			hStatus = CreateWindow(STATUSCLASSNAME, NULL, WS_CHILD | WS_VISIBLE, 0, 0, 0, 0,
 				hWnd, (HMENU)ID_STATUSBAR, hInst, NULL);
-			wstring st1 = L"clicked: " + to_wstring(clicked);
+			std::wstring st1 = L"clicked: " + std::to_wstring(clicked);
 			SendMessage(hStatus, SB_SETTEXT, 0, (LPARAM)st1.c_str());
-
 		}
 		break;
 
@@ -163,14 +194,36 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			clicked = true;
 			UpdateClickStatusBox(clicked);
 
+			if (currentTool == ID_FILLTOOL && isGradientMode) {
+
+				HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, hFillBrush);
+				int dcWidth = GetDeviceCaps(memDC, HORZRES);
+				int dcHeight = GetDeviceCaps(memDC, VERTRES);
+				GradientFloodFill(memDC, dcWidth, dcHeight, x, y, areaFillColor);
+
+				StretchBlt(hdc, 0, 0,
+					GetDeviceCaps(hdc, HORZRES),
+					GetDeviceCaps(hdc, VERTRES),
+					memDC, 0, 0,
+					GetDeviceCaps(memDC, HORZRES),
+					GetDeviceCaps(memDC, VERTRES), SRCCOPY);
+
+				SelectObject(memDC, oldBrush);
+				break;
+			}
+
 			if (currentTool == ID_FILLTOOL) {
 
 				HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, hFillBrush);
 				COLORREF pixelColor = GetPixel(memDC, x, y);
 				ExtFloodFill(memDC, x, y, pixelColor, FLOODFILLSURFACE);
-
-				InvalidateRect(hWnd, 0, true);
-				UpdateWindow(hWnd);
+				
+				StretchBlt(hdc, 0, 0,
+					GetDeviceCaps(hdc, HORZRES),
+					GetDeviceCaps(hdc, VERTRES),
+					memDC, 0, 0,
+					GetDeviceCaps(memDC, HORZRES),
+					GetDeviceCaps(memDC, VERTRES), SRCCOPY);
 
 				SelectObject(memDC, oldBrush);
 				break;
@@ -270,7 +323,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					ptsEnd = MAKEPOINTS(lParam);
 					drawer.drawPencil(hdc, memDC, ptsBegin, ptsEnd);
-					fPrevLine = TRUE;
+					fPrevLine = true;
 					ptsBegin = ptsEnd;
 				}
 				break;
@@ -280,7 +333,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				if (wParam & MK_LBUTTON)
 				{
 					drawer.drawLine(hdc, memDC, ptsBegin, &ptsEnd, fPrevLine, lParam);
-					fPrevLine = TRUE;
+					fPrevLine = true;
 				}
 				break;
 			}
@@ -291,7 +344,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					if (isFill)
 						SelectObject(hdc, hShapeBrush);
 					drawer.drawRectangle(hdc, memDC, ptsBegin, &ptsEnd, fPrevLine, lParam, isFill);
-					fPrevLine = TRUE;
+					fPrevLine = true;
 				}
 				break;
 			}
@@ -302,7 +355,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					if (isFill)
 						SelectObject(hdc, hShapeBrush);
 					drawer.drawEllipse(hdc, memDC, ptsBegin, &ptsEnd, fPrevLine, lParam, isFill);
-					fPrevLine = TRUE;
+					fPrevLine = true;
 				}
 				break;
 			}
@@ -402,6 +455,10 @@ void MenuCommand(HWND hWnd, WPARAM param)
 		_ChooseColor(hWnd, areaFillColor);
 		UpdateFillBrush();
 		break;
+	case IDM_CHOOSETOOL_GRADIENTMODE:
+		isGradientMode = !isGradientMode;
+		ToggleMenuGradientMode(hMenu);
+		break;
 	case IDM_PENSETTINGS_PENCOLOR:
 		_ChooseColor(hWnd, penColor);
 		UpdateFillBrush();
@@ -412,6 +469,7 @@ void MenuCommand(HWND hWnd, WPARAM param)
 		UpdateShapeBrush();
 		break;
 	case ID_SHAPES_FILLSHAPE:
+		isFill = !isFill;
 		ToggleMenuFill(hMenu);
 		break;
 	case ID_PENWIDTH_1PX:
@@ -548,9 +606,18 @@ void SetMenuShape(int shape, HMENU hMenu)
 	}
 }
 
+void ToggleMenuGradientMode(HMENU hMenu) 
+{
+	if (isGradientMode == true) {
+		CheckMenuItem(hMenu, IDM_CHOOSETOOL_GRADIENTMODE, MF_CHECKED);
+	}
+	else {
+		CheckMenuItem(hMenu, IDM_CHOOSETOOL_GRADIENTMODE, MF_UNCHECKED);
+	}
+}
+
 void ToggleMenuFill(HMENU hMenu)
 {
-	isFill = !isFill;
 	if (isFill == true) {
 		CheckMenuItem(hMenu, ID_SHAPES_FILLSHAPE, MF_CHECKED);
 	}
@@ -622,19 +689,19 @@ void UpdateStatusBar(bool clicked, int x, int y)
 
 void UpdateClickStatusBox(bool clickStatus)
 {
-	wstring st1 = L"clicked: " + to_wstring(clickStatus);
+	std::wstring st1 = L"clicked: " + std::to_wstring(clickStatus);
 	SendMessage(hStatus, SB_SETTEXT, 0, (LPARAM)st1.c_str());
 }
 
 void UpdateCoordStatusBox(int x, int y) 
 {
-	wstring st2 = L"x: " + to_wstring(x) + L"; y: " + to_wstring(y);
+	std::wstring st2 = L"x: " + std::to_wstring(x) + L"; y: " + std::to_wstring(y);
 	SendMessage(hStatus, SB_SETTEXT, 1, (LPARAM)st2.c_str());
 }
 
 void UpdatePenStatusBox()
 {
-	wstring st = L"width: " + to_wstring(penWidth) + L";    style: ";
+	std::wstring st = L"width: " + std::to_wstring(penWidth) + L";    style: ";
 
 	switch (penStyle) {
 	case PS_SOLID:
@@ -654,4 +721,98 @@ void UpdatePenStatusBox()
 	}
 
 	SendMessage(hStatus, SB_SETTEXT, 2, (LPARAM)st.c_str());
+}
+
+
+
+void GradientFloodFill(HDC dc, int dcWidth, int dcHeight, int x, int y, COLORREF newColor)
+{
+	
+	Gdiplus::Graphics gradientGraphics(gradientDC);
+
+	GraphicsPath path;
+	Rect clientRect(0, 0, dcWidth, dcHeight);
+	path.AddRectangle(clientRect);
+	PathGradientBrush pthGrBrush(&path);
+
+	Color pathCenterColor;
+	pathCenterColor.SetFromCOLORREF(areaFillColor);
+	pthGrBrush.SetCenterColor(pathCenterColor);
+
+	Color colors[] = { Color(Color::White)};
+
+	int count = 1;
+	pthGrBrush.SetSurroundColors(colors, &count);
+
+	gradientGraphics.FillRectangle(&pthGrBrush, 0, 0, dcWidth, dcHeight);
+
+
+
+
+
+	int *visitedPixels = new int[dcWidth * dcHeight];
+	std::fill(visitedPixels, visitedPixels + dcWidth * dcHeight, 0);
+
+	std::queue<std::pair<int, int>> pixelQueue;
+
+	COLORREF oldColor = GetPixel(dc, x, y);
+
+	pixelQueue.push({x, y});
+	visitedPixels[x*dcHeight + dcWidth] = 1;
+
+	while (pixelQueue.empty() != 1)
+	{
+		std::pair<int, int> coordinate = pixelQueue.front();
+		int x = coordinate.first;
+		int y = coordinate.second;
+
+		COLORREF gradientPixelColor = GetPixel(gradientDC, x, y);
+		SetPixel(dc, x, y, gradientPixelColor);
+		pixelQueue.pop();
+
+		if (isCoordinateValid(x + 1, y, dcWidth, dcHeight)
+			&& visitedPixels[(x + 1) * dcHeight + y] == 0
+			&& GetPixel(dc, x + 1, y) == oldColor)
+		{
+			pixelQueue.push({ x + 1, y });
+			visitedPixels[(x + 1) * dcHeight + y] = 1;
+		}
+
+		if (isCoordinateValid(x - 1, y, dcWidth, dcHeight)
+			&& visitedPixels[(x - 1) * dcHeight + y] == 0
+			&& GetPixel(dc, x - 1, y) == oldColor)
+		{
+			pixelQueue.push({ x - 1, y });
+			visitedPixels[(x - 1) * dcHeight + y] = 1;
+		}
+
+		if (isCoordinateValid(x, y + 1, dcWidth, dcHeight)
+			&& visitedPixels[x * dcHeight + (y + 1)] == 0
+			&& GetPixel(dc, x, y + 1) == oldColor)
+		{
+			pixelQueue.push({ x, y + 1 });
+			visitedPixels[x * dcHeight + (y + 1)] = 1;
+		}
+
+		if (isCoordinateValid(x, y - 1, dcWidth, dcHeight)
+			&& visitedPixels[x * dcHeight + (y - 1)] == 0
+			&& GetPixel(dc, x, y - 1) == oldColor)
+		{
+			pixelQueue.push({ x, y - 1 });
+			visitedPixels[x * dcHeight + (y - 1)] = 1;
+		}
+	}
+
+	delete[] visitedPixels;
+}
+
+bool isCoordinateValid(int x, int y, int dcWidth, int dcHeight)
+{
+	if (x < 0 || y < 0) {
+		return false;
+	}
+	if (x >= dcWidth || y >= dcHeight) {
+		return false;
+	}
+	return true;
 }
