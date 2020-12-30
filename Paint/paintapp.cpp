@@ -195,11 +195,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			UpdateClickStatusBox(clicked);
 
 			if (currentTool == ID_FILLTOOL && isGradientMode) {
+				Gdiplus::Graphics gradientGraphics(gradientDC);
 
-				HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, hFillBrush);
+
 				int dcWidth = GetDeviceCaps(memDC, HORZRES);
 				int dcHeight = GetDeviceCaps(memDC, VERTRES);
-				GradientFloodFill(memDC, dcWidth, dcHeight, x, y, areaFillColor);
+
+				GraphicsPath path;
+				Rect clientRect(0, 0, dcWidth, dcHeight);
+				path.AddRectangle(clientRect);
+				PathGradientBrush pthGrBrush(&path);
+
+				Color pathCenterColor;
+				pathCenterColor.SetFromCOLORREF(areaFillColor);
+				pthGrBrush.SetCenterColor(pathCenterColor);
+
+				Color colors[] = { Color(Color::White) };
+
+				int count = 1;
+				pthGrBrush.SetSurroundColors(colors, &count);
+				gradientGraphics.FillRectangle(&pthGrBrush, 0, 0, dcWidth, dcHeight);
+
+				
+
+				HBRUSH gradientBrush = CreatePatternBrush(gradientBM);
+				HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, gradientBrush);
+
+				COLORREF pixelColor = GetPixel(memDC, x, y);
+				ExtFloodFill(memDC, x, y, pixelColor, FLOODFILLSURFACE);
 
 				StretchBlt(hdc, 0, 0,
 					GetDeviceCaps(hdc, HORZRES),
@@ -208,7 +231,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					GetDeviceCaps(memDC, HORZRES),
 					GetDeviceCaps(memDC, VERTRES), SRCCOPY);
 
-				SelectObject(memDC, oldBrush);
+				DeleteObject(SelectObject(memDC, oldBrush));
 				break;
 			}
 
@@ -721,98 +744,4 @@ void UpdatePenStatusBox()
 	}
 
 	SendMessage(hStatus, SB_SETTEXT, 2, (LPARAM)st.c_str());
-}
-
-
-
-void GradientFloodFill(HDC dc, int dcWidth, int dcHeight, int x, int y, COLORREF newColor)
-{
-	
-	Gdiplus::Graphics gradientGraphics(gradientDC);
-
-	GraphicsPath path;
-	Rect clientRect(0, 0, dcWidth, dcHeight);
-	path.AddRectangle(clientRect);
-	PathGradientBrush pthGrBrush(&path);
-
-	Color pathCenterColor;
-	pathCenterColor.SetFromCOLORREF(areaFillColor);
-	pthGrBrush.SetCenterColor(pathCenterColor);
-
-	Color colors[] = { Color(Color::White)};
-
-	int count = 1;
-	pthGrBrush.SetSurroundColors(colors, &count);
-
-	gradientGraphics.FillRectangle(&pthGrBrush, 0, 0, dcWidth, dcHeight);
-
-
-
-
-
-	int *visitedPixels = new int[dcWidth * dcHeight];
-	std::fill(visitedPixels, visitedPixels + dcWidth * dcHeight, 0);
-
-	std::queue<std::pair<int, int>> pixelQueue;
-
-	COLORREF oldColor = GetPixel(dc, x, y);
-
-	pixelQueue.push({x, y});
-	visitedPixels[x*dcHeight + dcWidth] = 1;
-
-	while (pixelQueue.empty() != 1)
-	{
-		std::pair<int, int> coordinate = pixelQueue.front();
-		int x = coordinate.first;
-		int y = coordinate.second;
-
-		COLORREF gradientPixelColor = GetPixel(gradientDC, x, y);
-		SetPixel(dc, x, y, gradientPixelColor);
-		pixelQueue.pop();
-
-		if (isCoordinateValid(x + 1, y, dcWidth, dcHeight)
-			&& visitedPixels[(x + 1) * dcHeight + y] == 0
-			&& GetPixel(dc, x + 1, y) == oldColor)
-		{
-			pixelQueue.push({ x + 1, y });
-			visitedPixels[(x + 1) * dcHeight + y] = 1;
-		}
-
-		if (isCoordinateValid(x - 1, y, dcWidth, dcHeight)
-			&& visitedPixels[(x - 1) * dcHeight + y] == 0
-			&& GetPixel(dc, x - 1, y) == oldColor)
-		{
-			pixelQueue.push({ x - 1, y });
-			visitedPixels[(x - 1) * dcHeight + y] = 1;
-		}
-
-		if (isCoordinateValid(x, y + 1, dcWidth, dcHeight)
-			&& visitedPixels[x * dcHeight + (y + 1)] == 0
-			&& GetPixel(dc, x, y + 1) == oldColor)
-		{
-			pixelQueue.push({ x, y + 1 });
-			visitedPixels[x * dcHeight + (y + 1)] = 1;
-		}
-
-		if (isCoordinateValid(x, y - 1, dcWidth, dcHeight)
-			&& visitedPixels[x * dcHeight + (y - 1)] == 0
-			&& GetPixel(dc, x, y - 1) == oldColor)
-		{
-			pixelQueue.push({ x, y - 1 });
-			visitedPixels[x * dcHeight + (y - 1)] = 1;
-		}
-	}
-
-	delete[] visitedPixels;
-}
-
-bool isCoordinateValid(int x, int y, int dcWidth, int dcHeight)
-{
-	if (x < 0 || y < 0) {
-		return false;
-	}
-	if (x >= dcWidth || y >= dcHeight) {
-		return false;
-	}
-	return true;
 }

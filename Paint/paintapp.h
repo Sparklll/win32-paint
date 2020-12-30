@@ -71,5 +71,3 @@ void UpdateStatusBar(bool clicked, int x, int y);
 void UpdatePenStatusBox();
 void UpdateClickStatusBox(bool clickStatus);
 void UpdateCoordStatusBox(int x, int y);
-void GradientFloodFill(HDC dc, int dcWidth, int dcHeight, int x, int y, COLORREF newColor);
-bool isCoordinateValid(int x, int y, int dcWidth, int dcHeight);
