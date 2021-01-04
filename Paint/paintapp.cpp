@@ -146,7 +146,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			memBM = CreateCompatibleBitmap(hdc, 
 				GetDeviceCaps(hdc, HORZRES),
 				GetDeviceCaps(hdc, VERTRES));
-
 			SelectObject(memDC, memBM);
 			SelectObject(memDC, hPen);
 			PatBlt(memDC, 0, 0, 
@@ -284,18 +283,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			else if (shapeToDraw == ID_SHAPES_RECTANGLE)
 			{
 				if (!isFill)
+				{
 					SelectObject(memDC, GetStockObject(NULL_BRUSH));
+				}
+					
 				else
+				{
 					SelectObject(memDC, hShapeBrush);
+				}
 				ptsEnd = MAKEPOINTS(lParam);
 				Rectangle(memDC, ptsBegin.x, ptsBegin.y, ptsEnd.x, ptsEnd.y);
 			}
 			else if (shapeToDraw == ID_SHAPES_ELLIPSE)
 			{
 				if (!isFill)
+				{
 					SelectObject(memDC, GetStockObject(NULL_BRUSH));
+				}
+					
 				else
+				{
 					SelectObject(memDC, hShapeBrush);
+				}
 				ptsEnd = MAKEPOINTS(lParam);
 				Ellipse(memDC, ptsBegin.x, ptsBegin.y, ptsEnd.x, ptsEnd.y);
 			}
@@ -405,16 +414,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case WM_SETCURSOR:
 		{
 			if (currentTool == ID_PENTOOL
-				&& shapeToDraw != ID_SHAPES_PENCIL) {
+				&& shapeToDraw != ID_SHAPES_PENCIL)
+			{
 				SetCursor(defaultCursor);
 			}
-			else if (currentTool == ID_PENTOOL) {
+			else if (currentTool == ID_PENTOOL) 
+			{
 				SetCursor(pencilCursor);
 			}
-			else if (currentTool == ID_ERASERTOOL) {
+			else if (currentTool == ID_ERASERTOOL) 
+			{
 				SetCursor(eraserCursor);
 			}
-			else if (currentTool == ID_FILLTOOL) {
+			else if (currentTool == ID_FILLTOOL) 
+			{
 				SetCursor(fillCursor);
 			}
 		}
@@ -631,20 +644,24 @@ void SetMenuShape(int shape, HMENU hMenu)
 
 void ToggleMenuGradientMode(HMENU hMenu) 
 {
-	if (isGradientMode == true) {
+	if (isGradientMode == true) 
+	{
 		CheckMenuItem(hMenu, IDM_CHOOSETOOL_GRADIENTMODE, MF_CHECKED);
 	}
-	else {
+	else 
+	{
 		CheckMenuItem(hMenu, IDM_CHOOSETOOL_GRADIENTMODE, MF_UNCHECKED);
 	}
 }
 
 void ToggleMenuFill(HMENU hMenu)
 {
-	if (isFill == true) {
+	if (isFill == true) 
+	{
 		CheckMenuItem(hMenu, ID_SHAPES_FILLSHAPE, MF_CHECKED);
 	}
-	else {
+	else 
+	{
 		CheckMenuItem(hMenu, ID_SHAPES_FILLSHAPE, MF_UNCHECKED);
 	}
 }
@@ -661,7 +678,8 @@ void UpdatePen()
 	lb.lbColor = penColor;
 	hPen = ExtCreatePen(PS_GEOMETRIC | penStyle, penWidth, &lb, 0, NULL);
 
-	if (currentTool == ID_ERASERTOOL) {
+	if (currentTool == ID_ERASERTOOL) 
+	{
 		hPen = eraser;
 	}
 
@@ -680,27 +698,6 @@ void UpdateFillBrush()
 	DeleteObject(hFillBrush);
 
 	hFillBrush = CreateSolidBrush(areaFillColor);
-}
-
-void _ChooseColor(HWND hWnd, COLORREF &color)
-{
-	CHOOSECOLOR chooseColor;
-	static COLORREF choosenColors[16];
-	static DWORD rgbCurrent;
-
-	ZeroMemory(&chooseColor, sizeof(CHOOSECOLOR));
-	chooseColor.lStructSize = sizeof(CHOOSECOLOR);
-	chooseColor.hwndOwner = hWnd;
-	chooseColor.lpCustColors = choosenColors;
-	chooseColor.rgbResult = rgbCurrent;
-
-	chooseColor.Flags = CC_FULLOPEN | CC_RGBINIT;
-
-
-	if (ChooseColor(&chooseColor) == TRUE)
-	{
-		color = chooseColor.rgbResult;
-	}
 }
 
 void UpdateStatusBar(bool clicked, int x, int y)
@@ -744,4 +741,25 @@ void UpdatePenStatusBox()
 	}
 
 	SendMessage(hStatus, SB_SETTEXT, 2, (LPARAM)st.c_str());
+}
+
+void _ChooseColor(HWND hWnd, COLORREF& color)
+{
+	CHOOSECOLOR chooseColor;
+	static COLORREF choosenColors[16];
+	static DWORD rgbCurrent;
+
+	ZeroMemory(&chooseColor, sizeof(CHOOSECOLOR));
+	chooseColor.lStructSize = sizeof(CHOOSECOLOR);
+	chooseColor.hwndOwner = hWnd;
+	chooseColor.lpCustColors = choosenColors;
+	chooseColor.rgbResult = rgbCurrent;
+
+	chooseColor.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+
+	if (ChooseColor(&chooseColor) == TRUE)
+	{
+		color = chooseColor.rgbResult;
+	}
 }

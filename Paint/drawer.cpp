@@ -26,8 +26,6 @@ void Drawer::drawLine(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, bool 
 {
 	if (fPrevLine)
 	{
-		MoveToEx(hdc, ptsBegin.x, ptsBegin.y, (LPPOINT)NULL);
-		LineTo(hdc, ptsEnd->x, ptsEnd->y);
 		StretchBlt(hdc, 0, 0, 
 			GetDeviceCaps(hdc, HORZRES),
 			GetDeviceCaps(hdc, VERTRES), 
@@ -45,7 +43,6 @@ void Drawer::drawRectangle(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, 
 {
 	if (fPrevLine)
 	{
-		Rectangle(hdc, ptsBegin.x, ptsBegin.y, ptsEnd->x, ptsEnd->y);
 		StretchBlt(hdc, 0, 0, 
 			GetDeviceCaps(hdc, HORZRES),
 			GetDeviceCaps(hdc, VERTRES), 
@@ -54,8 +51,11 @@ void Drawer::drawRectangle(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, 
 			GetDeviceCaps(memDC, VERTRES), SRCCOPY);
 	}
 	*ptsEnd = MAKEPOINTS(lParam);
+
 	if (!isFill)
+	{
 		SelectObject(hdc, GetStockObject(NULL_BRUSH));
+	}
 	Rectangle(hdc, ptsBegin.x, ptsBegin.y, ptsEnd->x, ptsEnd->y);
 }
 
@@ -63,7 +63,6 @@ void Drawer::drawEllipse(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, bo
 {
 	if (fPrevLine)
 	{
-		Ellipse(hdc, ptsBegin.x, ptsBegin.y, ptsEnd->x, ptsEnd->y);
 		StretchBlt(hdc, 0, 0, 
 			GetDeviceCaps(hdc, HORZRES),
 			GetDeviceCaps(hdc, VERTRES), 
@@ -72,8 +71,12 @@ void Drawer::drawEllipse(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, bo
 			GetDeviceCaps(memDC, VERTRES), SRCCOPY);
 	}
 	*ptsEnd = MAKEPOINTS(lParam);
+
+
 	if (!isFill)
+	{
 		SelectObject(hdc, GetStockObject(NULL_BRUSH));
+	}
 	Ellipse(hdc, ptsBegin.x, ptsBegin.y, ptsEnd->x, ptsEnd->y);
 }
 
@@ -81,8 +84,6 @@ void Drawer::drawPolyLine(HDC hdc, HDC memDC, POINTS ptsBegin, POINTS* ptsEnd, b
 {
 	if (fPrevLine)
 	{
-		MoveToEx(hdc, ptsBegin.x, ptsBegin.y, (LPPOINT)NULL);
-		LineTo(hdc, ptsEnd->x, ptsEnd->y);
 		StretchBlt(hdc, 0, 0, 
 			GetDeviceCaps(hdc, HORZRES),
 			GetDeviceCaps(hdc, VERTRES), 
